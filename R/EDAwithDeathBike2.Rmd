@@ -1,0 +1,154 @@
+---
+title: "EDAwithDeathBike2"
+author: "Lee JaeSeo"
+date: "2018년 1월 22일"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## 자전거 사망 데이터
+
+법규위반 
+
+`안전운전의무불이행` (http://news.koroad.or.kr/articleview.php?idx=1248&page=5)
+
+<br>
+<br>
+
+### Packages
+```{r}
+library(data.table)
+library(dplyr)
+library(tidyr)
+library(ggmap)
+library(ggplot2)
+library(ggthemes)
+##install.packages("ggthemes")
+```
+
+<br>
+<br>
+
+### Load Data
+```{r}
+death <- fread("./Data/12_16_seoul_death.csv", encoding='UTF-8')[,-11]
+death <- as.data.frame(death)
+head(death)
+str(death)
+```
+
+<br>
+<br>
+
+
+### Handling
+```{r}
+###### 발생년, 발생날짜, 발생시각 열으로 정리
+for(i in 1:3) death[,i] <- as.character(death[,i])
+nc <- nchar(death[,3])
+death[which(nc==1),3] <- paste0("0",death[which(nc==1),3])
+
+death$발생분 <- paste0(substr(death$발생년월일시, 9, 10), death$발생분)
+death$발생년월일시 <- substr(death$발생년월일시, 1, 8)
+death$발생년월일시 <- as.Date(death$발생년월일시, format="%Y%m%d")
+names(death)[2:3] <- c("발생날짜", "발생시분")
+
+
+###### 자전거 사고자만 필터링(가해자, 피해자 구분)
+bike_death <- death %>% filter(당사자종별_1당_대분류=="자전거" | 당사자종별_2당_대분류=="자전거")
+bike_death <- bike_death %>% select( -발생지시군구, -당사자종별_1당, -당사자종별_2당, -발생위치X_UTMK, -발생위치Y_UTMK )
+bike_death$구분 <- "피해자"
+
+## 당사자종별_1당_대분류, 당사자종별_2당_대분류 차원축소(2개중 자전거가 아닌 인자 남기기)
+bike_attacker_ind <- which(bike_death$당사자종별_2당_대분류!="자전거")
+bike_death[bike_attacker_ind, "당사자종별_1당_대분류"] <- bike_death[bike_attacker_ind, "당사자종별_2당_대분류"]
+bike_death <- bike_death[, which(names(bike_death)!="당사자종별_2당_대분류")]
+bike_death[bike_attacker_ind, which(names(bike_death)=="구분")] <- "가해자"
+
+## 자전거 단독 사고자 구분
+bike_death[which(bike_death$당사자종별_1당_대분류==""),which(names(bike_death) == "당사자종별_1당_대분류")] <- "단독"
+
+names(bike_death)[18] <- "상대방차종"
+
+
+
+###### 휴일 변수 생성
+## 차원 축소
+bike_death2 <- bike_death[,-c(3,6,8:10,12,14)]
+
+## 요일 변수 -> 휴일 변수
+holi <- read.table("./Data/12_16_holi.txt")
+holi <- as.character(holi$V1)
+holi <- as.Date(holi, "%Y%m%d")
+
+bike_death2 <- as.data.table(bike_death2)
+setkey(bike_death2, 발생날짜)
+bike_death2 <- bike_death2[, 휴일 := 0]
+bike_death2 <- bike_death2[요일=="일", 휴일 := 1]
+bike_death2 <- bike_death2[요일=="토", 휴일 := 1]
+bike_death2 <- bike_death2[bike_death2$발생날짜 %in% (holi), 휴일 := 1]
+bike_death3 <- bike_death2[, c(1:3,15,5:11,14,12,13)]
+```
+
+<br>
+<br>
+
+> 그래프나 나타낸 가해자/피해자를 나타내는 것은 자전거? 혹은 그래프에 나타난 당사자?
+
+```{r}
+## 차종에 따른 사망사고자수 : 승용차에 의한 사고가 압도적, 그다음으로 화물차, 승합차
+CarType <- bike_death3 %>% group_by(상대방차종) %>% summarise(num=n())
+CarType <- CarType[order(-CarType$num),]
+ggplot(CarType, aes(x=reorder(상대방차종, -num), y=num)) +
+  geom_bar(stat="identity", fill="#4788ef") +
+  geom_text(aes(y=num, label=num)) +
+  theme(axis.text.x=element_text(angle=22.5))  +
+  
+  labs(x="유형", y="사상자수") +
+  ggtitle("사고당사자 유형에 따른 사상자수")
+
+CarorNot <- as.data.table(CarType)[, ":="("유형", "차")]
+CarorNot[c(4,5,8), "유형"] <- "기타"
+CarorNot <- CarorNot %>% group_by(유형) %>% summarise(num=sum(num))
+ggplot(CarorNot, aes(x=유형, y=num, fill=유형)) +
+  geom_bar(stat="identity") +
+  geom_text(aes(y=num+5, label=num)) +
+  scale_fill_manual(values = c("#377eb8", "#e41a1c")) +
+  ylab("사상자수") +
+  ggtitle("사고당사자 유형에 따른 사상자수 비교") +
+  
+  theme(plot.title = element_text(size=25),
+        axis.title = element_text(size=15),
+        legend.position="none")
+
+## 사고당사자 유형에 따른 사상자수
+CarType2 <- bike_death3 %>% group_by(상대방차종, 구분) %>% summarise(num=n()) %>% arrange(구분, -num)
+ggplot(CarType2, aes(x=reorder(상대방차종, -num), y=num)) +
+  geom_bar(stat="identity", fill="#4788ef") +
+  geom_text(aes(y=num+2, label=num)) +
+  facet_wrap(~구분, scales = "free_x", nrow=2) +
+  
+  theme(plot.title = element_text(size=25),
+        axis.title = element_text(size=15)) +
+  labs(x="유형", y="사상자수") +
+  ggtitle("사고당사자 유형에 따른 사상자수")
+
+###### 법규위반 유형에 따른 사상자수
+ViolationType <- bike_death3 %>% group_by(법규위반, 구분) %>% summarise(num=sum(사상자수)) %>% arrange(구분, -num)
+ggplot(ViolationType, aes(x=reorder(법규위반, -num), y=num)) +
+  geom_bar(stat="identity", fill="#4788ef") +
+  geom_text(aes(y=num+2, label=num)) +
+  facet_wrap(~구분, scales = "free_x", nrow=2) +
+  theme(plot.title = element_text(size=25),
+        axis.title = element_text(size=15),
+        axis.text.x = element_text(angle=10)) +
+  labs(x="유형", y="사상자수") +
+  ggtitle("사고당사자 유형에 따른 사상자수")
+```
+
+
+
+
+
+

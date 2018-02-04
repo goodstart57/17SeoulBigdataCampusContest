@@ -1,0 +1,95 @@
+---
+title: "YongDoo"
+author: "Lee JaeSeo"
+date: "2018년 1월 23일"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+```{r, warning=F, message=F}
+library(data.table)
+library(dplyr)
+library(tidyr)
+library(ggmap)
+library(ggplot2)
+```
+
+```{r}
+yd_acc <- as.data.frame(fread("./Data/12_16_용두역_사고다발지.csv", encoding='UTF-8'))
+
+##연령 숫자로 변경
+yd_acc$`가해운전자 연령` <- as.integer(substr(yd_acc$`가해운전자 연령`, 1, 2))
+yd_acc$`피해운전자 연령` <- as.integer(substr(yd_acc$`피해운전자 연령`, 1, 2))
+
+head(yd_acc)
+str(yd_acc)
+```
+
+```{r, echo=F}
+##발생일시 -> 발생년, 발생날짜, 발생시
+yd_acc$Date <- substr(yd_acc$발생일시, 1,)
+yd_acc$발생일시 <- as.Date(yd_acc$발생일시)
+yd_acc$hour <- substr(yd_acc$발생일시, length(yd_acc$발생일시)-2, length(yd_acc$발생일시))
+yd_acc$Date <- substr(yd_acc$발생일시, )
+
+
+
+## 문자형인 변수 팩토형으로 변환
+for(i in 3:ncol(yd_acc)) if(is.character(yd_acc[,i])) yd_acc[,i] <- as.factor(yd_acc[,i])
+
+
+forplot <- yd_acc 
+plot(forplot$사고유형)
+
+
+plot(yd_acc)
+```
+
+
+ [1] "사고번호"            "발생일시"            "발생요일"            "발생시군구"         
+ [5] "사고유형"            "사망자수"            "중상자수"            "경상자수"           
+ [9] "부상신고자수"        "노면상태"            "도로형태"            "법규위반"           
+[13] "가해운전자 차종"     "가해운전자 성별"     "가해운전자 연령"     "가해운전자 상해정도"
+[17] "피해운전자 차종"     "피해운전자 성별"     "피해운전자 연령"     "피해운전자 상해정도"
+[21] "기상상태" 
+
+```{r}
+sort(table(yd_acc$발생요일), decreasing=T)
+sort(table(yd_acc$사고유형), decreasing=T)[c(-1,-7)]
+sort(table(yd_acc$사망자수), decreasing=T)
+sort(table(yd_acc$중상자수), decreasing=T)
+sort(table(yd_acc$경상자수), decreasing=T)
+sort(table(yd_acc$부상신고자수), decreasing=T)
+sort(table(yd_acc$노면상태), decreasing=T)
+sort(table(yd_acc$도로형태), decreasing=T)
+sort(table(yd_acc$법규위반), decreasing=T)
+sort(table(yd_acc$`가해운전자 차종`), decreasing=T)
+sort(table((yd_acc$`가해운전자 연령`)%%10*10), decreasing=T)
+sort(table(yd_acc$`가해운전자 상해정도`), decreasing=T)
+sort(table(yd_acc$`피해운전자 차종`), decreasing=T)
+sort(table((yd_acc$`피해운전자 연령`)%%10*10), decreasing=T)
+sort(table(yd_acc$`피해운전자 상해정도`), decreasing=T)
+tmp <- as.data.frame(sort(table((yd_acc$`피해운전자 연령`)%%10*10), decreasing=T))
+plot(tmp)
+tmp <- tmp[which(tmp$Var1 !=0),]
+ggplot(tmp, aes(Var1, Freq)) +
+  geom_bar(stat="identity", fill="#4788ef") +
+  geom_text(aes(y=Freq-0.3, label=Freq)) +
+  scale_y_continuous(limits=c(0,9)) +
+  labs(x="연령대", y="발생건수")
+```
+
+
+```{r}
+acc_type <- as.data.frame(table(yd_acc$사고유형))
+ggplot(acc_type, aes(Var1, Freq)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=12))
+
+yd_acc %>% filter(사고유형==3)
+```
+
+

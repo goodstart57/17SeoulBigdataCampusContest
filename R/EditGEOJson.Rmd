@@ -1,0 +1,23 @@
+---
+title: "EditGEOJson"
+author: "Lee JaeSeo"
+date: "2018년 1월 14일"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+bikeacc <- read.csv("./Data/2016년_서울시_자전거사고다발지.csv", sep="\t")
+bikeacc$다발지역폴리곤 <- as.character(bikeacc$다발지역폴리곤)
+bikeacc[2,15]
+
+geojson <- character()
+n <- nrow(bikeacc)
+for(i in 1:n)
+  geojson <- c(geojson, substr((tmp <- bikeacc[i,15]),34,nchar(as.character(tmp))-2))
+
+GeoJson <- paste(geojson, collapse=",")
+GeoJson
+```
+

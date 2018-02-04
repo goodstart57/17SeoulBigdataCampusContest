@@ -1,0 +1,73 @@
+---
+title: "Density Estimation"
+author: "Lee JaeSeo"
+date: "2018년 2월 3일"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Load Packages
+```{r}
+library(data.table)
+library(dplyr)
+library(class)
+```
+
+## Load DataSet
+```{r}
+wine <- fread("./Data/wine.csv")
+```
+
+## Density Estimation with Histogram
+```{r}
+apply(wine, 2, function(x){ max(x) - min(x) })
+
+hist(wine$`Malic acid`, xlab="Malic Acid", main = "Histogram of Wine's Malic Acid")
+```
+
+## Kernel Density Estimation with Gaussian Distribution
+```{r}
+hist(wine$`Malic acid`, xlab="Malic Acid", main = "KDE with gaussian distribution", prob=T)
+lines(density(wine$`Malic acid`), col="red")
+rug(jitter(wine$`Malic acid`))
+bw.nrd0(wine$`Malic acid`)
+```
+
+## KNN
+```{r}
+idx <- sample(x = c("train", "test"),
+              size = nrow(wine),
+              replace = T,
+              prob = c(0.7, 0.3))
+
+wine.train <- wine[idx=="train",-1]
+wine.test <- wine[idx=="test",-1]
+
+wine.train.x <- wine.train[,-3]
+wine.train.y <- wine.train[,3]
+wine.test.x <- wine.test[,-3]
+wine.test.y <- wine.test[,3]
+
+
+# k = 1 일 때
+set.seed(1234)
+knn_1 <- knn(train = wine.train.x, test = wine.test.x, cl = wine.train.y, k = 1)
+
+# train 산점도 그리기
+plot(formula = Sepal.Length ~ Sepal.Width, data = train, col = alpha(c("purple", "blue", "green"), 0.7)[train$Species], main = "KNN (k = 1)")
+
+# knn valid 결과 표시하기
+points(formula = Sepal.Length ~ Sepal.Width, data = valid, pch = 17, cex = 1.2, col = alpha(c("purple", "blue", "green"), 0.7)[knn_1])
+
+# 범례 그리기
+legend("topright", c(paste("train", levels(train$Species)), paste("valid", levels(valid$Species))), pch = c(rep(1, 3), rep(17, 3)), col = c(rep(alpha(c("purple", "blue", "green"), 0.7), 2)), cex = 0.9)
+
+# 분류 정확도 계산하기
+accuracy_1 <- sum(knn_1 == wine.test.y) / length(wine.test.y) ; accuracy_1
+```
+
+
+
+
+

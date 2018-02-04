@@ -1,0 +1,163 @@
+---
+title: "EDA"
+author: "Lee JaeSeo"
+date: "2018-01-15"
+output: html_document
+---
+
+## 자전거 사망 데이터
+
+법규위반 
+
+`안전운전의무불이행` (http://news.koroad.or.kr/articleview.php?idx=1248&page=5)
+
+<br>
+<br>
+
+### Packages
+```{r}
+library(data.table)
+library(ggmap)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+<br>
+<br>
+
+### Load Data
+```{r}
+death <- fread("./Data/12_16_seoul_death.csv", encoding='UTF-8')[,-11]
+death <- as.data.frame(death)
+
+for(i in 1:3) death[,i] <- as.character(death[,i])
+nc <- nchar(death[,3])
+death[which(nc==1),3] <- paste0("0",death[which(nc==1),3])
+
+death$발생분 <- paste0(substr(death$발생년월일시, 9, 10), death$발생분)
+death$발생년월일시 <- substr(death$발생년월일시, 1, 8)
+death$발생년월일시 <- as.Date(death$발생년월일시, format="%Y%m%d")
+names(death)[2:3] <- c("발생날짜", "발생시분")
+head(death)
+str(death)
+```
+
+<br>
+<br>
+
+```{r}
+bike_death <- death %>% filter(당사자종별_1당_대분류=="자전거" | 당사자종별_2당_대분류=="자전거")
+bike_death <- bike_death[,-c(11,20,22,23:24)]
+
+## 당사자종별_1당_대분류, 당사자종별_2당_대분류 차원축소(2개중 자전거가 아닌 인자 남기기)
+bike_death[which(bike_death$당사자종별_2당_대분류=="자전거"), 19] <- bike_death[which(bike_death$당사자종별_2당_대분류=="자전거"), 18]
+bike_death <- bike_death[,-18]
+names(bike_death)[18] <- "상대방차종"
+head(bike_death)
+
+
+rate <- colSums(bike_death[,c(6:9)])
+rate <- (data.frame(심각도=names(rate), 수=rate))[-2,]
+rownames(rate) <- NULL
+
+##사망율
+ggplot(rate, aes(x=reorder(심각도, 수), y=수, fill=수)) +
+  geom_bar(stat="identity") +
+  geom_text(aes(y=수+10, label=심각도)) +
+  scale_fill_gradient(low="#2b4163", high="#4286f4") +
+  xlab("심각도") + theme(axis.text.x=element_blank()) +
+  ggtitle("년도별 사고 심각도에 따른 사상자수 ")
+```
+
+<br>
+<br>
+
+* dayC(휴일, 평일) 변수 생성
+```{r}
+## 차원 축소
+bike_death2 <- bike_death[,-c(3,6,8:10,12,14)]
+
+## 요일 변수 -> 휴일 변수
+holi <- read.table("./Data/12_16_holi.txt")
+holi <- as.character(holi$V1)
+holi <- as.Date(holi, "%Y%m%d")
+
+bike_death2 <- as.data.table(bike_death2)
+setkey(bike_death2, 발생날짜)
+bike_death2 <- bike_death2[, 휴일 := 0]
+bike_death2 <- bike_death2[요일=="일", 휴일 := 1]
+bike_death2 <- bike_death2[요일=="토", 휴일 := 1]
+bike_death2 <- bike_death2[bike_death2$발생날짜 %in% (holi), 휴일 := 1]
+bike_death3 <- bike_death2[, c(1:3,14,5:13)]
+```
+
+<br>
+<br>
+
+```{r}
+## 년도별 사상자수
+ggplot(bike_death3, aes(발생년, 사상자수)) +
+  geom_bar(stat="identity", fill="#4788ef") +
+  ylab("사상자수")+
+  ggtitle("년도별 사상자수 ")
+
+
+## 년도별 사망.사고자수
+bike_death3$사상자수 <- factor(bike_death3$사상자수, labels=c("사망", "사망사고"))
+sumlosses <- bike_death3 %>% group_by(발생년, 사상자수) %>% summarise(losses=sum(as.numeric(사상자수)))
+
+## 발생년도에 따른 사망사고의 추이가 보이않는다.
+ggplot(sumlosses, aes(발생년, losses)) +
+  geom_bar(stat="identity", fill="#4788ef") +
+  geom_text(aes(y=losses, label=losses)) +
+  facet_wrap(~사상자수, nrow=2, scales="free_y") +
+  ylab("사상자수") +
+  ggtitle("년도별 사망.사고자수")
+
+## 교차로와 단일로에 많은 사고가 발생
+RoadType <- bike_death3 %>% group_by(발생년, 도로형태_대분류) %>% summarise(num=n())
+ggplot(RoadType, aes(발생년, num, fill=도로형태_대분류)) +
+  geom_bar(stat="identity", position="dodge") +
+  ggtitle("도로형태에 따른 사상자수")
+
+## 휴일(108건)과 평일(35건) 전체 날짜에 대한 비율을 생각한다면 큰 차이가 보이않는다.
+Hol <- bike_death3 %>% group_by(휴일) %>% summarise(num=n())
+Hol
+
+## 차종에 따른 사망사고자수 : 승용차에 의한 사고가 압도적, 그다음으로 화물차, 승합차
+CarType <- (bike_death3 %>% group_by(상대방차종) %>% summarise(num=n()))[-1,]
+CarType <- CarType[order(-CarType$num),]
+ggplot(CarType, aes(x=reorder(상대방차종, -num), y=num)) +
+  geom_bar(stat="identity", fill="#4788ef") +
+  geom_text(aes(y=num, label=num)) +
+  theme(axis.text.x=element_text(angle=22.5)) +
+  labs(x="유형", y="사상자수") +
+  ggtitle("사고자 유형에 따른 사상자수")
+
+RoadCar <- bike_death3 %>% group_by(도로형태_대분류, 상대방차종) %>% summarise(num=n()) %>% arrange(desc(num)) %>% unite(원인, c(도로형태_대분류, 상대방차종))
+ggplot(RoadCar, aes(reorder(원인, -num), num)) +
+  geom_bar(stat="identity", fill="#4788ef") +
+  geom_text(aes(y=num, label=num)) +
+  theme(axis.text.x=element_text(angle=22.5)) +
+  labs(x="도로 및 상대방차종 유형", y="사상자수") +
+  ggtitle("도로형태 및 사고자유형에 따른 사상자수")
+
+
+CarorNot <- as.data.table(CarType)[, ":="("유형", "차")]
+CarorNot[c(4,5,8), "유형"] <- "기타"
+CarorNot
+
+ggplot(CarorNot, aes(x=유형, y=num, fill=유형)) +
+  geom_bar(stat="identity") +
+  scale_fill_manual(values = c("#377eb8", "#e41a1c")) +
+  ylab("사상자수") +
+  ggtitle("사고유형에 따른 사상자수 비교")
+
+```
+
+
+
+
+
+
