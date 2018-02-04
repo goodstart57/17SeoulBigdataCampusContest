@@ -40,7 +40,7 @@ rug(jitter(wine$`Malic acid`)) ##데이터의 위치
 
 <center>
 
-<img src="C:\Github\17SeoulBigdataCampusContest\Image\KDEwithGaussian.PNG" width="500">
+<img src="https://github.com/hiwooj/17SeoulBigdataCampusContest/blob/master/Image/KDEwithGaussian.PNG?raw=true" width="500">
 
 </center>
 
@@ -58,7 +58,7 @@ Uniform, Triangular, Epanechnikov, Quartic, Triweight, Gaussian, Cosine 등이 �
 
 <center>
 
-<img src="C:\Github\17SeoulBigdataCampusContest\Image\KDE_h.PNG">
+<img src="https://github.com/hiwooj/17SeoulBigdataCampusContest/blob/master/Image/KDE_h.png?raw=true">
 
 </center>
 
@@ -78,6 +78,6 @@ Uniform, Triangular, Epanechnikov, Quartic, Triweight, Gaussian, Cosine 등이 �
 
 <center>
 
-<img src="C:\Github\17SeoulBigdataCampusContest\Image\HotSpotwithKDE.PNG" width="800">
+<img src="https://github.com/hiwooj/17SeoulBigdataCampusContest/blob/master/Image/HotSpotwithKDE.png?raw=true" width="800">
 
 </center>
