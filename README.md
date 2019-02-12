@@ -1,6 +1,12 @@
-# <center>2017년 서울시 빅데이터 캠퍼스 상시공모전 
+# <center>2017년 서울시 빅데이터 캠퍼스 상시공모전 (우수상)
 
 ### <center>주제 : 서울시 자전거사고 밀집구역 원인분석 및 개선방안 
+
+### 팀원
+
+  - 이재서 ([Link](https://github.com/goodstart57))
+  - 윤지영 ([Link](https://github.com/popsmile))
+  - 진우정 ([Link](https://github.com/hiwooj))
 
 ### 공모일정 
 
